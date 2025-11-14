@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Ambiente virtual
+venv/
+env/
+ENV/
+
+# Arquivos temporários
+*.tmp
+temp_*.wav
+temp_segment_*.wav
+
+# Arquivos de saída (manter estrutura, mas ignorar conteúdo)
+output/*.txt
+backups/*.backup
+
+# Arquivos de vídeo/áudio grandes
+*.mp4
+*.mp3
+*.wav
+*.m4a
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema
+.DS_Store
+Thumbs.db
+
