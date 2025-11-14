@@ -616,10 +616,22 @@ def extrair_segmentos_do_arquivo_bruto(caminho_arquivo: str) -> List[Dict]:
     speaker_pattern = r'Speaker\s+(\d+)'
     
     segmento_atual = None
+    dentro_da_secao_transcricao = False
     
     for linha in linhas:
+        linha_original = linha
         linha = linha.strip()
-        if not linha or linha.startswith('=') or linha.startswith('📁') or linha.startswith('🤖'):
+        
+        # Detecta início da seção de transcrição
+        if 'TRANSCRIÇÃO BRUTA' in linha or 'TRANSCRIÇÃO' in linha:
+            dentro_da_secao_transcricao = True
+            continue
+        
+        # Ignora linhas de cabeçalho/metadados
+        if not dentro_da_secao_transcricao:
+            continue
+            
+        if not linha or linha.startswith('=') or linha.startswith('📁') or linha.startswith('🤖') or linha.startswith('📊') or linha.startswith('🎤'):
             continue
         
         # Detecta timestamp e speaker
@@ -636,8 +648,16 @@ def extrair_segmentos_do_arquivo_bruto(caminho_arquivo: str) -> List[Dict]:
             timestamp_segundos = horas * 3600 + minutos * 60 + segundos
             speaker = f"Speaker {match_speaker.group(1)}"
             
-            # Extrai texto
-            texto = linha.split(':', 1)[-1].strip() if ':' in linha else ''
+            # Extrai texto da linha (pode ter texto na mesma linha após o speaker)
+            # Formato: [0:00:00] Speaker 1: texto aqui
+            # OU: [0:00:00] Speaker 1: (texto vem na próxima linha)
+            partes = linha.split(':', 2)  # Divide em até 3 partes
+            if len(partes) >= 3:
+                # Tem texto após Speaker X:
+                texto = partes[2].strip()
+            else:
+                # Só tem timestamp e speaker, texto vem na próxima linha
+                texto = ''
             
             segmento_atual = {
                 'start': timestamp_segundos,
@@ -646,22 +666,28 @@ def extrair_segmentos_do_arquivo_bruto(caminho_arquivo: str) -> List[Dict]:
                 'text': texto
             }
         elif segmento_atual and linha:
-            # Continua texto
-            if segmento_atual['text']:
-                segmento_atual['text'] += ' ' + linha
-            else:
+            # Continua texto do segmento atual
+            # IMPORTANTE: Se o texto estava vazio, esta é a primeira linha de texto
+            if not segmento_atual['text']:
+                # Primeira linha de texto do segmento
                 segmento_atual['text'] = linha
+            else:
+                # Continua adicionando ao texto existente
+                segmento_atual['text'] += ' ' + linha
     
     # Adiciona último segmento
     if segmento_atual:
         segmentos.append(segmento_atual)
     
-    # Ajusta timestamps
+    # Ajusta timestamps (preserva timestamps originais quando possível)
     for i, seg in enumerate(segmentos):
-        if i > 0:
-            seg['start'] = segmentos[i-1]['end']
         if i < len(segmentos) - 1:
-            seg['end'] = seg['start'] + max(5, len(seg['text'].split()) * 0.5)
+            # Estima duração baseada no tamanho do texto
+            palavras = len(seg['text'].split())
+            seg['end'] = seg['start'] + max(5, palavras * 0.5)
+            # Ajusta início do próximo segmento
+            if i + 1 < len(segmentos):
+                segmentos[i + 1]['start'] = seg['end']
     
     return segmentos
 
