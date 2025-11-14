@@ -1,4 +1,9 @@
 openai-whisper>=20231117
 torch>=2.0.0
 torchaudio>=2.0.0
+# Opcional: para diarização avançada (descomente se necessário)
+# pyannote.audio>=3.0.0
+# pyannote.core>=5.0.0
+# Opcional: para pós-correção com LLM
+# openai>=1.0.0
 
