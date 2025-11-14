@@ -328,32 +328,19 @@ Texto corrigido:"""
         return texto
 
 # ============================================================================
-# TRANSCRIÇÃO AVANÇADA
+# ETAPA 1: TRANSCRIÇÃO (SOMENTE TRANSCREVE, SEM CORREÇÕES)
 # ============================================================================
 
-def transcrever_avancado(caminho_video: str,
-                         modelo: str = "large-v3",
-                         usar_pyannote: bool = True,
-                         pyannote_token: Optional[str] = None,
-                         modo_limpeza: str = "medio",
-                         usar_llm: bool = False,
-                         llm_api_key: Optional[str] = None,
-                         max_chars_bloco: int = 600):
+def transcrever_apenas(caminho_video: str,
+                      modelo: str = "large-v3",
+                      usar_pyannote: bool = True,
+                      pyannote_token: Optional[str] = None):
     """
-    Transcrição avançada com todas as melhorias
-    
-    Args:
-        caminho_video: Caminho do arquivo
-        modelo: Modelo Whisper
-        usar_pyannote: Se True, usa PyAnnote para diarização
-        pyannote_token: Token de autenticação PyAnnote
-        modo_limpeza: "leve", "medio" ou "agressivo"
-        usar_llm: Se True, usa LLM para pós-correção
-        llm_api_key: API key para LLM
-        max_chars_bloco: Tamanho máximo de bloco antes de dividir
+    ETAPA 1: Apenas transcreve o vídeo e salva resultado bruto
+    Não aplica correções - isso fica para a etapa 2
     """
     print("="*70)
-    print("🚀 WHISPER AVANÇADO - VERSÃO FINAL")
+    print("📝 ETAPA 1: TRANSCRIÇÃO (SEM CORREÇÕES)")
     print("="*70)
     print()
     
@@ -372,9 +359,7 @@ def transcrever_avancado(caminho_video: str,
         print("⚠️  CPU (será mais lento)")
     
     print(f"🤖 Modelo: {modelo}")
-    print(f"🔧 Modo limpeza: {modo_limpeza}")
     print(f"🎤 PyAnnote: {'Sim' if usar_pyannote and PYANNOTE_AVAILABLE else 'Não'}")
-    print(f"🤖 LLM: {'Sim' if usar_llm else 'Não'}")
     print()
     
     try:
@@ -400,11 +385,12 @@ def transcrever_avancado(caminho_video: str,
         print(f"✓ Modelo carregado em {tempo_carga:.1f}s")
         print()
         
-        # PASSO 3: Transcrição
+        # PASSO 3: Transcrição (SEM correções)
+        segmentos_transcritos = []
+        
         if segmentos_diarizacao:
             # Transcreve por segmento diarizado
             print("🎙️  Transcrevendo por segmentos diarizados...")
-            segmentos_transcritos = []
             
             for i, seg_dia in enumerate(segmentos_diarizacao):
                 print(f"   Segmento {i+1}/{len(segmentos_diarizacao)}: {formatar_timestamp(seg_dia['start'])} - {formatar_timestamp(seg_dia['end'])}")
@@ -460,7 +446,6 @@ def transcrever_avancado(caminho_video: str,
             
             # Converte segments para formato padrão
             segments = resultado.get('segments', [])
-            segmentos_transcritos = []
             speaker_atual = 1
             
             for seg in segments:
@@ -477,60 +462,47 @@ def transcrever_avancado(caminho_video: str,
                         speaker_atual += 1
                         segmentos_transcritos[-1]['speaker'] = f'Speaker {speaker_atual}'
         
-        # PASSO 4: Processamento pós-transcrição
-        print("\n🔧 Aplicando processamento pós-transcrição...")
-        
-        # 4.1 Normalização de termos
-        print("   ✓ Normalizando termos técnicos...")
-        for seg in segmentos_transcritos:
-            seg['text'] = normalizar_termos(seg['text'])
-        
-        # 4.2 Limpeza de vícios de fala
-        print(f"   ✓ Limpando vícios de fala (modo: {modo_limpeza})...")
-        for seg in segmentos_transcritos:
-            seg['text'] = limpar_vicios_fala(seg['text'], modo_limpeza)
-        
-        # 4.3 Segmentação por tópicos
-        print("   ✓ Segmentando por tópicos...")
-        segmentos_transcritos = segmentar_por_topicos(segmentos_transcritos, max_chars_bloco)
-        
-        # 4.4 Pós-correção com LLM (opcional)
-        if usar_llm and llm_api_key:
-            print("   ✓ Aplicando correção semântica com LLM...")
-            for seg in segmentos_transcritos:
-                seg['text'] = corrigir_com_llm(seg['text'], llm_api_key)
-        
-        # PASSO 5: Organização e salvamento
-        print("\n📝 Organizando transcrição...")
-        
-        # Agrupa por tópico e speaker
-        transcricao_organizada = organizar_por_topicos(segmentos_transcritos)
-        
-        # Salva
+        # PASSO 4: Salva transcrição BRUTA (sem correções)
         nome_base = Path(caminho_video).stem
-        arquivo_saida = f"{nome_base}_avancado.txt"
+        arquivo_bruto = f"{nome_base}_transcricao_bruta.txt"
         
-        salvar_transcricao_organizada(arquivo_saida, transcricao_organizada, {
-            'arquivo': os.path.basename(caminho_video),
-            'modelo': modelo,
-            'modo_limpeza': modo_limpeza,
-            'pyannote': usar_pyannote and PYANNOTE_AVAILABLE,
-            'llm': usar_llm
-        })
+        with open(arquivo_bruto, 'w', encoding='utf-8') as f:
+            f.write("="*70 + "\n")
+            f.write("📝 TRANSCRIÇÃO BRUTA (SEM CORREÇÕES)\n")
+            f.write("="*70 + "\n\n")
+            f.write(f"📁 Arquivo: {os.path.basename(caminho_video)}\n")
+            f.write(f"🤖 Modelo: {modelo}\n")
+            f.write(f"🎤 PyAnnote: {'Sim' if usar_pyannote and PYANNOTE_AVAILABLE else 'Não'}\n")
+            f.write(f"📊 Segmentos: {len(segmentos_transcritos)}\n")
+            f.write(f"🎤 Speakers: {len(set(s['speaker'] for s in segmentos_transcritos))}\n")
+            f.write("\n" + "="*70 + "\n")
+            f.write("TRANSCRIÇÃO BRUTA\n")
+            f.write("="*70 + "\n\n")
+            
+            speaker_anterior = None
+            for seg in segmentos_transcritos:
+                if speaker_anterior and speaker_anterior != seg['speaker']:
+                    f.write("\n")
+                
+                timestamp = formatar_timestamp(seg['start'])
+                f.write(f"[{timestamp}] {seg['speaker']}:\n")
+                f.write(f"{seg['text']}\n\n")
+                
+                speaker_anterior = seg['speaker']
         
         print("\n" + "="*70)
-        print("✅ TRANSCRIÇÃO CONCLUÍDA")
+        print("✅ ETAPA 1 CONCLUÍDA")
         print("="*70)
-        print(f"📄 Arquivo: {arquivo_saida}")
+        print(f"📄 Arquivo bruto salvo: {arquivo_bruto}")
         print(f"📊 Segmentos: {len(segmentos_transcritos)}")
         print(f"🎤 Speakers: {len(set(s['speaker'] for s in segmentos_transcritos))}")
-        print(f"📑 Tópicos: {len(set(s.get('topico', 'Geral') for s in segmentos_transcritos))}")
+        print("\n💡 Próximo passo: Execute a correção com:")
+        print(f"   python whisper_avancado.py --corrigir \"{arquivo_bruto}\"")
         print("="*70)
         
         return {
-            'arquivo': arquivo_saida,
-            'segmentos': segmentos_transcritos,
-            'organizada': transcricao_organizada
+            'arquivo_bruto': arquivo_bruto,
+            'segmentos': segmentos_transcritos
         }
         
     except KeyboardInterrupt:
@@ -541,6 +513,239 @@ def transcrever_avancado(caminho_video: str,
         import traceback
         traceback.print_exc()
         return None
+
+# ============================================================================
+# ETAPA 2: CORREÇÃO E ORGANIZAÇÃO (APLICA MELHORIAS)
+# ============================================================================
+
+def corrigir_e_organizar(caminho_arquivo_bruto: str,
+                         modo_limpeza: str = "medio",
+                         usar_llm: bool = False,
+                         llm_api_key: Optional[str] = None,
+                         max_chars_bloco: int = 600):
+    """
+    ETAPA 2: Aplica correções e organiza transcrição bruta
+    Lê arquivo bruto e aplica todas as melhorias
+    """
+    print("="*70)
+    print("🔧 ETAPA 2: CORREÇÃO E ORGANIZAÇÃO")
+    print("="*70)
+    print()
+    
+    if not os.path.exists(caminho_arquivo_bruto):
+        print(f"❌ Arquivo não encontrado: {caminho_arquivo_bruto}")
+        return None
+    
+    print(f"📁 Arquivo bruto: {os.path.basename(caminho_arquivo_bruto)}")
+    print(f"🔧 Modo limpeza: {modo_limpeza}")
+    print(f"🤖 LLM: {'Sim' if usar_llm else 'Não'}")
+    print()
+    
+    # Lê arquivo bruto
+    print("📖 Lendo transcrição bruta...")
+    segmentos = extrair_segmentos_do_arquivo_bruto(caminho_arquivo_bruto)
+    print(f"✓ {len(segmentos)} segmentos carregados")
+    
+    # Aplica melhorias
+    print("\n🔧 Aplicando melhorias...")
+    
+    # 1. Normalização de termos
+    print("   ✓ Normalizando termos técnicos...")
+    for seg in segmentos:
+        seg['text'] = normalizar_termos(seg['text'])
+    
+    # 2. Limpeza de vícios de fala
+    print(f"   ✓ Limpando vícios de fala (modo: {modo_limpeza})...")
+    for seg in segmentos:
+        seg['text'] = limpar_vicios_fala(seg['text'], modo_limpeza)
+    
+    # 3. Segmentação por tópicos
+    print("   ✓ Segmentando por tópicos...")
+    segmentos = segmentar_por_topicos(segmentos, max_chars_bloco)
+    
+    # 4. Pós-correção com LLM (opcional)
+    if usar_llm and llm_api_key:
+        print("   ✓ Aplicando correção semântica com LLM...")
+        for seg in segmentos:
+            seg['text'] = corrigir_com_llm(seg['text'], llm_api_key)
+    
+    # Organiza por tópicos
+    print("   ✓ Organizando por tópicos...")
+    transcricao_organizada = organizar_por_topicos(segmentos)
+    
+    # Salva resultado final
+    nome_base = Path(caminho_arquivo_bruto).stem.replace('_transcricao_bruta', '')
+    arquivo_final = f"{nome_base}_avancado.txt"
+    
+    # Lê metadados do arquivo bruto
+    metadados = ler_metadados_arquivo_bruto(caminho_arquivo_bruto)
+    
+    salvar_transcricao_organizada(arquivo_final, transcricao_organizada, {
+        'arquivo': metadados.get('arquivo', os.path.basename(caminho_arquivo_bruto)),
+        'modelo': metadados.get('modelo', 'N/A'),
+        'modo_limpeza': modo_limpeza,
+        'pyannote': metadados.get('pyannote', False),
+        'llm': usar_llm
+    })
+    
+    print("\n" + "="*70)
+    print("✅ ETAPA 2 CONCLUÍDA")
+    print("="*70)
+    print(f"📄 Arquivo final: {arquivo_final}")
+    print(f"📊 Segmentos: {len(segmentos)}")
+    print(f"🎤 Speakers: {len(set(s.get('speaker', 'Speaker 1') for s in segmentos))}")
+    print(f"📑 Tópicos: {len(transcricao_organizada)}")
+    print("="*70)
+    
+    return {
+        'arquivo_final': arquivo_final,
+        'segmentos': segmentos,
+        'organizada': transcricao_organizada
+    }
+
+def extrair_segmentos_do_arquivo_bruto(caminho_arquivo: str) -> List[Dict]:
+    """
+    Extrai segmentos de arquivo bruto gerado na etapa 1
+    """
+    segmentos = []
+    
+    with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+        linhas = f.readlines()
+    
+    timestamp_pattern = r'\[(\d+):(\d+):(\d+)\]'
+    speaker_pattern = r'Speaker\s+(\d+)'
+    
+    segmento_atual = None
+    
+    for linha in linhas:
+        linha = linha.strip()
+        if not linha or linha.startswith('=') or linha.startswith('📁') or linha.startswith('🤖'):
+            continue
+        
+        # Detecta timestamp e speaker
+        match_timestamp = re.search(timestamp_pattern, linha)
+        match_speaker = re.search(speaker_pattern, linha, re.IGNORECASE)
+        
+        if match_timestamp and match_speaker:
+            # Salva segmento anterior
+            if segmento_atual:
+                segmentos.append(segmento_atual)
+            
+            # Cria novo segmento
+            horas, minutos, segundos = map(int, match_timestamp.groups())
+            timestamp_segundos = horas * 3600 + minutos * 60 + segundos
+            speaker = f"Speaker {match_speaker.group(1)}"
+            
+            # Extrai texto
+            texto = linha.split(':', 1)[-1].strip() if ':' in linha else ''
+            
+            segmento_atual = {
+                'start': timestamp_segundos,
+                'end': timestamp_segundos + 10,
+                'speaker': speaker,
+                'text': texto
+            }
+        elif segmento_atual and linha:
+            # Continua texto
+            if segmento_atual['text']:
+                segmento_atual['text'] += ' ' + linha
+            else:
+                segmento_atual['text'] = linha
+    
+    # Adiciona último segmento
+    if segmento_atual:
+        segmentos.append(segmento_atual)
+    
+    # Ajusta timestamps
+    for i, seg in enumerate(segmentos):
+        if i > 0:
+            seg['start'] = segmentos[i-1]['end']
+        if i < len(segmentos) - 1:
+            seg['end'] = seg['start'] + max(5, len(seg['text'].split()) * 0.5)
+    
+    return segmentos
+
+def ler_metadados_arquivo_bruto(caminho_arquivo: str) -> Dict:
+    """
+    Lê metadados do arquivo bruto
+    """
+    metadados = {}
+    
+    with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+        for linha in f:
+            if '📁 Arquivo:' in linha:
+                metadados['arquivo'] = linha.split(':', 1)[-1].strip()
+            elif '🤖 Modelo:' in linha:
+                metadados['modelo'] = linha.split(':', 1)[-1].strip()
+            elif '🎤 PyAnnote:' in linha:
+                metadados['pyannote'] = 'Sim' in linha
+    
+    return metadados
+
+# ============================================================================
+# FUNÇÃO PRINCIPAL (CHAMA AS DUAS ETAPAS)
+# ============================================================================
+
+def transcrever_avancado(caminho_video: str,
+                         modelo: str = "large-v3",
+                         usar_pyannote: bool = True,
+                         pyannote_token: Optional[str] = None,
+                         modo_limpeza: str = "medio",
+                         usar_llm: bool = False,
+                         llm_api_key: Optional[str] = None,
+                         max_chars_bloco: int = 600,
+                         apenas_transcrever: bool = False,
+                         apenas_corrigir: bool = False):
+    """
+    Função principal: Executa as duas etapas em sequência
+    
+    Args:
+        caminho_video: Caminho do arquivo de vídeo OU arquivo bruto (se apenas_corrigir=True)
+        modelo: Modelo Whisper
+        usar_pyannote: Se True, usa PyAnnote para diarização
+        pyannote_token: Token de autenticação PyAnnote
+        modo_limpeza: "leve", "medio" ou "agressivo"
+        usar_llm: Se True, usa LLM para pós-correção
+        llm_api_key: API key para LLM
+        max_chars_bloco: Tamanho máximo de bloco antes de dividir
+        apenas_transcrever: Se True, só faz etapa 1 (transcrição)
+        apenas_corrigir: Se True, só faz etapa 2 (correção) - caminho_video deve ser arquivo bruto
+    """
+    # Se apenas corrigir, pula direto para etapa 2
+    if apenas_corrigir:
+        return corrigir_e_organizar(
+            caminho_video,
+            modo_limpeza=modo_limpeza,
+            usar_llm=usar_llm,
+            llm_api_key=llm_api_key,
+            max_chars_bloco=max_chars_bloco
+        )
+    
+    # ETAPA 1: Transcrição
+    resultado_etapa1 = transcrever_apenas(
+        caminho_video,
+        modelo=modelo,
+        usar_pyannote=usar_pyannote,
+        pyannote_token=pyannote_token
+    )
+    
+    if not resultado_etapa1:
+        return None
+    
+    # Se apenas transcrever, para aqui
+    if apenas_transcrever:
+        return resultado_etapa1
+    
+    # ETAPA 2: Correção e organização
+    resultado_etapa2 = corrigir_e_organizar(
+        resultado_etapa1['arquivo_bruto'],
+        modo_limpeza=modo_limpeza,
+        usar_llm=usar_llm,
+        llm_api_key=llm_api_key,
+        max_chars_bloco=max_chars_bloco
+    )
+    
+    return resultado_etapa2
 
 def organizar_por_topicos(segmentos: List[Dict]) -> Dict[str, List[Dict]]:
     """
@@ -604,9 +809,13 @@ def salvar_transcricao_organizada(arquivo: str, transcricao_organizada: Dict, me
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("="*70)
-        print("🚀 WHISPER AVANÇADO - VERSÃO FINAL")
+        print("🚀 WHISPER AVANÇADO - VERSÃO FINAL (POR ETAPAS)")
         print("="*70)
         print("\nUso: python whisper_avancado.py <arquivo> [opções]")
+        print("\nModos de execução:")
+        print("  (padrão)              - Executa ETAPA 1 (transcreve) + ETAPA 2 (corrige)")
+        print("  --apenas-transcrever  - Só executa ETAPA 1 (transcreve e salva bruto)")
+        print("  --corrigir            - Só executa ETAPA 2 (corrige arquivo bruto)")
         print("\nOpções:")
         print("  [modelo]              - tiny, base, small, medium, large, large-v3 (padrão: large-v3)")
         print("  [modo_limpeza]        - leve, medio, agressivo (padrão: medio)")
@@ -615,8 +824,16 @@ if __name__ == "__main__":
         print("  --llm                 - Usa LLM para pós-correção (requer --llm-key)")
         print("  --llm-key KEY         - API key para LLM (OpenAI)")
         print("\nExemplos:")
+        print('  # Executa tudo (transcreve + corrige)')
         print('  python whisper_avancado.py "video.mp4"')
-        print('  python whisper_avancado.py "video.mp4" large-v3 medio')
+        print('')
+        print('  # Só transcreve (mais rápido)')
+        print('  python whisper_avancado.py "video.mp4" --apenas-transcrever')
+        print('')
+        print('  # Só corrige arquivo bruto já gerado')
+        print('  python whisper_avancado.py "video_transcricao_bruta.txt" --corrigir')
+        print('')
+        print('  # Com opções')
         print('  python whisper_avancado.py "video.mp4" large-v3 medio --llm --llm-key sk-...')
         print("\nMelhorias implementadas:")
         print("  ✓ Diarização separada (PyAnnote)")
@@ -625,6 +842,8 @@ if __name__ == "__main__":
         print("  ✓ Normalização robusta de termos")
         print("  ✓ Pós-correção semântica (LLM opcional)")
         print("  ✓ Organização em blocos temáticos")
+        print("\n💡 Dica: Use --apenas-transcrever para transcrever mais rápido,")
+        print("   depois use --corrigir para aplicar melhorias quando quiser.")
         sys.exit(1)
     
     caminho = sys.argv[1].strip('"\'')
@@ -634,6 +853,8 @@ if __name__ == "__main__":
     pyannote_token = None
     usar_llm = False
     llm_api_key = None
+    apenas_transcrever = False
+    apenas_corrigir = False
     
     # Processa argumentos
     i = 2
@@ -653,6 +874,10 @@ if __name__ == "__main__":
         elif arg == '--llm-key' and i + 1 < len(sys.argv):
             llm_api_key = sys.argv[i + 1]
             i += 1
+        elif arg == '--apenas-transcrever':
+            apenas_transcrever = True
+        elif arg == '--corrigir':
+            apenas_corrigir = True
         i += 1
     
     transcrever_avancado(
@@ -662,6 +887,8 @@ if __name__ == "__main__":
         pyannote_token=pyannote_token,
         modo_limpeza=modo_limpeza,
         usar_llm=usar_llm,
-        llm_api_key=llm_api_key
+        llm_api_key=llm_api_key,
+        apenas_transcrever=apenas_transcrever,
+        apenas_corrigir=apenas_corrigir
     )
 
